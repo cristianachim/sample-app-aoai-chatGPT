@@ -5,6 +5,7 @@ import logging
 import uuid
 import httpx
 import asyncio
+import requests
 from quart import (
     Blueprint,
     Quart,
