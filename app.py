@@ -818,6 +818,25 @@ async def clear_messages():
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route("/auth/google", methods=["GET"])
+def login_with_google_url():
+    access_token = request.args.get("access_token")
+
+    if not access_token:
+        return jsonify({"error": "Missing access token"}), 400
+
+    # Verify the token
+    google_token_info_url = f"https://oauth2.googleapis.com/tokeninfo?access_token={access_token}"
+    response = requests.get(google_token_info_url)
+
+    if response.status_code == 200:
+        user_info = response.json()
+        return jsonify({"message": "Login successful", "user": user_info})
+    else:
+        return jsonify({"error": "Invalid Google access token"}), 401
+    
+
+
 @bp.route("/history/ensure", methods=["GET"])
 async def ensure_cosmos():
     await cosmos_db_ready.wait()
