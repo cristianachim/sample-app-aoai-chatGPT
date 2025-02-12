@@ -48,7 +48,7 @@ def token_required(f):
     async def decorated_function(*args, **kwargs):
         token = request.args.get("token")
         if not token:
-            return jsonify({"error": "Token is missing"}), 401
+            return jsonify({"error": "Unauthorized"}), 401
 
         # Verify the token (example logic)
         if token != "e4eaaaf2-d142-11e1-b3e4-080027620cdd":
