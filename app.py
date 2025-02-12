@@ -6,6 +6,7 @@ import uuid
 import httpx
 import asyncio
 import requests
+from functools import wraps
 from quart import (
     Blueprint,
     Quart,
@@ -41,6 +42,21 @@ bp = Blueprint("routes", __name__, static_folder="static", template_folder="stat
 
 cosmos_db_ready = asyncio.Event()
 
+# Define a middleware function to check the token from the URL
+def token_required(f):
+    @wraps(f)
+    async def decorated_function(*args, **kwargs):
+        token = request.args.get("token")
+        if not token:
+            return jsonify({"error": "Token is missing"}), 401
+
+        # Verify the token (example logic)
+        if token != "e4eaaaf2-d142-11e1-b3e4-080027620cdd":
+            return jsonify({"error": "Invalid token"}), 401
+
+        return await f(*args, **kwargs)
+    return decorated_function
+
 
 def create_app():
     app = Quart(__name__)
@@ -61,6 +77,7 @@ def create_app():
 
 
 @bp.route("/")
+@token_required
 async def index():
     return await render_template(
         "index.html",
