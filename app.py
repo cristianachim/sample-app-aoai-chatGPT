@@ -61,9 +61,8 @@ def validate_google_token(token: str) -> bool:
             return False
         
         # Verify the issuer and subject
-        issuer = decoded_token.get("iss")
-        subject = decoded_token.get("sub")
-        if issuer != EXPECTED_AUD or subject != EXPECTED_AUD:
+        aud = decoded_token.get("aud")
+        if aud != EXPECTED_AUD:
             return False
         
         return True
