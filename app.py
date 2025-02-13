@@ -46,7 +46,7 @@ bp = Blueprint("routes", __name__, static_folder="static", template_folder="stat
 cosmos_db_ready = asyncio.Event()
 
 # Replace with your expected service account email
-EXPECTED_SERVICE_ACCOUNT_EMAIL = "xpertlog-chatbot@sacred-highway-447114-m0.iam.gserviceaccount.com"
+EXPECTED_AUD = "103295589319492588204"
 
 
 def validate_google_token(token: str) -> bool:
@@ -63,7 +63,7 @@ def validate_google_token(token: str) -> bool:
         # Verify the issuer and subject
         issuer = decoded_token.get("iss")
         subject = decoded_token.get("sub")
-        if issuer != EXPECTED_SERVICE_ACCOUNT_EMAIL or subject != EXPECTED_SERVICE_ACCOUNT_EMAIL:
+        if issuer != EXPECTED_AUD or subject != EXPECTED_AUD:
             return False
         
         return True
@@ -114,6 +114,7 @@ async def index():
         title=app_settings.ui.title,
         favicon=app_settings.ui.favicon
     )
+    
 
 @bp.route("/favicon.ico")
 async def favicon():
