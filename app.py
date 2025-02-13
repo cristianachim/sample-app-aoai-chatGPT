@@ -6,6 +6,9 @@ import uuid
 import httpx
 import asyncio
 import requests
+import jwt
+from datetime import datetime, timezone
+from google.auth import jwt as google_jwt
 from functools import wraps
 from quart import (
     Blueprint,
@@ -42,6 +45,33 @@ bp = Blueprint("routes", __name__, static_folder="static", template_folder="stat
 
 cosmos_db_ready = asyncio.Event()
 
+# Replace with your expected service account email
+EXPECTED_SERVICE_ACCOUNT_EMAIL = "xpertlog-chatbot@sacred-highway-447114-m0.iam.gserviceaccount.com"
+
+
+def validate_google_token(token: str) -> bool:
+    try:
+        
+        # Decode the token to extract claims
+        decoded_token = google_jwt.decode(token)
+        
+        # Verify the expiration time
+        exp = decoded_token.get("exp")
+        if exp is None or datetime.fromtimestamp(exp, timezone.utc) < datetime.now(timezone.utc):
+            return False
+        
+        # Verify the issuer and subject
+        issuer = decoded_token.get("iss")
+        subject = decoded_token.get("sub")
+        if issuer != EXPECTED_SERVICE_ACCOUNT_EMAIL or subject != EXPECTED_SERVICE_ACCOUNT_EMAIL:
+            return False
+        
+        return True
+    except Exception as e:
+        print(f"Token validation failed: {e}")
+        return False
+
+
 # Define a middleware function to check the token from the URL
 def token_required(f):
     @wraps(f)
@@ -51,12 +81,12 @@ def token_required(f):
             return jsonify({"error": "Unauthorized"}), 401
 
         # Verify the token (example logic)
-        if token != "e4eaaaf2-d142-11e1-b3e4-080027620cdd":
+        if not (token == "e4eaaaf2-d142-11e1-b3e4-080027620cdd" or validate_google_token(token)):
             return jsonify({"error": "Invalid token"}), 401
 
         return await f(*args, **kwargs)
     return decorated_function
-
+ 
 
 def create_app():
     app = Quart(__name__)
@@ -76,7 +106,7 @@ def create_app():
     return app
 
 
-@bp.route("/")
+@bp.route("/3.9.4")
 @token_required
 async def index():
     return await render_template(
@@ -84,7 +114,6 @@ async def index():
         title=app_settings.ui.title,
         favicon=app_settings.ui.favicon
     )
-
 
 @bp.route("/favicon.ico")
 async def favicon():
