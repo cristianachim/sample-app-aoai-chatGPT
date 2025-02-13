@@ -866,12 +866,6 @@ const Chat = () => {
                   </span>
                 </Stack>
               )}
-                <Dialog
-                  hidden={hideErrorDialog}
-                  onDismiss={handleErrorDialogClose}
-                  dialogContentProps={errorDialogContentProps}
-                  modalProps={modalProps}></Dialog>
-              </Stack>
               <QuestionInput
                 clearOnSend
                 placeholder="Type a new question..."
