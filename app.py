@@ -6,9 +6,7 @@ import uuid
 import httpx
 import asyncio
 import requests
-import jwt
 from datetime import datetime, timezone
-from google.auth import jwt as google_jwt
 from functools import wraps
 from quart import (
     Blueprint,
@@ -51,20 +49,24 @@ EXPECTED_AUD = "103295589319492588204"
 
 def validate_google_token(token: str) -> bool:
     try:
-        
-        # Decode the token to extract claims
-        decoded_token = google_jwt.decode(token)
-        
-        # Verify the expiration time
-        exp = decoded_token.get("exp")
-        if exp is None or datetime.fromtimestamp(exp, timezone.utc) < datetime.now(timezone.utc):
+        response = requests.get(f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}")
+        data = response.json()
+
+        if "error" in data:
+            print(f"Token validation failed: {data['error_description']}")
             return False
-        
-        # Verify the issuer and subject
-        aud = decoded_token.get("aud")
-        if aud != EXPECTED_AUD:
+
+        # Verifică dacă token-ul este destinat aplicației tale
+        if data.get("aud") != EXPECTED_AUD:
+            print("Token audience mismatch")
             return False
-        
+
+        # Verifică expirarea tokenului
+        exp = int(data.get("exp", 0))
+        if exp and exp < int(datetime.now().timestamp()):
+            print("Token expired")
+            return False
+
         return True
     except Exception as e:
         print(f"Token validation failed: {e}")
