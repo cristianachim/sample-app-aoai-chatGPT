@@ -927,58 +927,11 @@ async def ensure_cosmos():
             return jsonify({"error": "CosmosDB is not working"}), 500
 
 
-def call_weather_api(city: str, unit: str = "metric") -> dict:
-    """
-    Întoarce un rezumat meteo pentru `city`.
-    unit: "metric" (°C) | "imperial" (°F)
-    Ridică `requests.HTTPError` dacă serverul nu răspunde OK (4xx / 5xx).
-    """
-    api_key = "24ca7c0e634e10d07efa5c867701b5ba"         # pune cheia în variabilă de mediu!
-    url = "https://api.openweathermap.org/data/2.5/weather"
-    params = {
-        "q": city,
-        "appid": api_key,
-        "units": unit,
-        "lang": "ro"     # răspuns în română
-    }
-
-    resp = requests.get(url, params=params, timeout=10)
-    resp.raise_for_status()
-    raw = resp.json()
-
-    # extragem doar ce ne interesează:
-    return {
-        "city": raw["name"],
-        "temp": raw["main"]["temp"],                     # °C sau °F, după unit
-        "description": raw["weather"][0]["description"], # ex. „ploaie ușoară”
-        "humidity": raw["main"]["humidity"],             # %
-        "wind_kmh": round(raw["wind"]["speed"] * 3.6, 1) # m/s → km/h
-    }
-
 async def generate_title(conversation_messages) -> str:
     ## make sure the messages are sorted by _ts descending
     title_prompt = "Summarize the conversation so far into a 4-word or less title. Do not use any quotation marks or punctuation. Do not include any other commentary or description."
 
-    tools = [
-        {
-        "type": "function",
-        "function": {
-            "name": "get_weather",
-            "description": "Returnează prognoza meteo pe 5 zile pentru un oraș.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "city": {"type": "string", "description": "Numele orașului"},
-                    "unit": {"type": "string", "enum": ["metric","imperial"]}
-                },
-                "required": ["city"]
-            }
-        }
-        }
-    ]
-
     messages = [
-        {"role": "user", "content": "Care este vremea în Timisoara?"},
         {"role": msg["role"], "content": msg["content"]}
         for msg in conversation_messages
     ]
@@ -987,26 +940,8 @@ async def generate_title(conversation_messages) -> str:
     try:
         azure_openai_client = await init_openai_client()
         response = await azure_openai_client.chat.completions.create(
-            model=app_settings.azure_openai.model, messages=messages, temperature=1, max_tokens=64,tools=tools
+            model=app_settings.azure_openai.model, messages=messages, temperature=1, max_tokens=64
         )
-
-        choice = response.choices[0]
-        if choice.finish_reason == "tool_call":
-            call = choice.message.tool_calls[0]          # nume funcție + args
-            args = json.loads(call.function.arguments)
-            result = call_weather_api(args["city"], args.get("unit","metric"))  # apelul real
-            # trimite răspunsul API-ului în conversație
-            messages.append(choice.message)              # mesajul "function_call"
-            messages.append({
-                "role":"tool",
-                "name":call.function.name,
-                "content":json.dumps(result)
-            })
-            # cere modelului să formuleze răspunsul final către user
-            final = azure_openai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=messages
-            )
 
         title = response.choices[0].message.content
         return title
