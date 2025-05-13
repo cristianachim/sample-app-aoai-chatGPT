@@ -978,7 +978,7 @@ async def generate_title(conversation_messages) -> str:
     ]
 
     messages = [
-        {"role": "user", "content": "Care este vremea în Timisoara?"},
+        {"role": "user", "content": "Cum este vremea în Timisoara?"},
         {"role": msg["role"], "content": msg["content"]}
         for msg in conversation_messages
     ]
@@ -990,23 +990,7 @@ async def generate_title(conversation_messages) -> str:
             model=app_settings.azure_openai.model, messages=messages, temperature=1, max_tokens=64,tools=tools
         )
 
-        choice = response.choices[0]
-        if choice.finish_reason == "tool_call":
-            call = choice.message.tool_calls[0]          # nume funcție + args
-            args = json.loads(call.function.arguments)
-            result = call_weather_api(args["city"], args.get("unit","metric"))  # apelul real
-            # trimite răspunsul API-ului în conversație
-            messages.append(choice.message)              # mesajul "function_call"
-            messages.append({
-                "role":"tool",
-                "name":call.function.name,
-                "content":json.dumps(result)
-            })
-            # cere modelului să formuleze răspunsul final către user
-            final = azure_openai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=messages
-            )
+
 
         title = response.choices[0].message.content
         return title
