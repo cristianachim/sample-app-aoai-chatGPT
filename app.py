@@ -927,34 +927,6 @@ async def ensure_cosmos():
             return jsonify({"error": "CosmosDB is not working"}), 500
 
 
-def call_weather_api(city: str, unit: str = "metric") -> dict:
-    """
-    Întoarce un rezumat meteo pentru `city`.
-    unit: "metric" (°C) | "imperial" (°F)
-    Ridică `requests.HTTPError` dacă serverul nu răspunde OK (4xx / 5xx).
-    """
-    api_key = "24ca7c0e634e10d07efa5c867701b5ba"         # pune cheia în variabilă de mediu!
-    url = "https://api.openweathermap.org/data/2.5/weather"
-    params = {
-        "q": city,
-        "appid": api_key,
-        "units": unit,
-        "lang": "ro"     # răspuns în română
-    }
-
-    resp = requests.get(url, params=params, timeout=10)
-    resp.raise_for_status()
-    raw = resp.json()
-
-    # extragem doar ce ne interesează:
-    return {
-        "city": raw["name"],
-        "temp": raw["main"]["temp"],                     # °C sau °F, după unit
-        "description": raw["weather"][0]["description"], # ex. „ploaie ușoară”
-        "humidity": raw["main"]["humidity"],             # %
-        "wind_kmh": round(raw["wind"]["speed"] * 3.6, 1) # m/s → km/h
-    }
-
 async def generate_title(conversation_messages) -> str:
     ## make sure the messages are sorted by _ts descending
     title_prompt = "Summarize the conversation so far into a 4-word or less title. Do not use any quotation marks or punctuation. Do not include any other commentary or description."
