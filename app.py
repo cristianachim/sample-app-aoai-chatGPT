@@ -998,3 +998,5 @@ async def fetch_timisoara_news():
             return "\n".join(news_list) if news_list else "Nu am găsit știri recente despre Timișoara."
         else:
             return "Nu am putut prelua știrile despre Timișoara."
+
+app = create_app()
