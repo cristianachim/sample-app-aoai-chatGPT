@@ -931,26 +931,7 @@ async def generate_title(conversation_messages) -> str:
     ## make sure the messages are sorted by _ts descending
     title_prompt = "Summarize the conversation so far into a 4-word or less title. Do not use any quotation marks or punctuation. Do not include any other commentary or description."
 
-    tools = [
-        {
-        "type": "function",
-        "function": {
-            "name": "get_weather",
-            "description": "Returnează prognoza meteo pe 5 zile pentru un oraș.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "city": {"type": "string", "description": "Numele orașului"},
-                    "unit": {"type": "string", "enum": ["metric","imperial"]}
-                },
-                "required": ["city"]
-            }
-        }
-        }
-    ]
-
     messages = [
-        {"role": "user", "content": "Cum este vremea în Timisoara?"},
         {"role": msg["role"], "content": msg["content"]}
         for msg in conversation_messages
     ]
