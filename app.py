@@ -468,7 +468,7 @@ async def conversation():
             if (
                 last_message.get("role") == "user"
                 and isinstance(last_message.get("content"), str)
-                and re.search(r"\bstirile?\s+de\s+la\s+timisoara\b", last_message["content"].lower())
+                and re.search(r"\braport?\s+Lives\b", last_message["content"].lower())
             ):
                 news = await fetch_timisoara_news()
                 return jsonify({
