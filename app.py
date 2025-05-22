@@ -586,7 +586,9 @@ async def add_conversation():
         # Submit request to Chat Completions for response
         request_body = await request.get_json()
         if response_json != "":
-            request_body["content"] = response_json
+            # Înlocuiește content-ul ultimului mesaj din messages
+            if "messages" in request_body and isinstance(request_body["messages"], list) and len(request_body["messages"]) > 0:
+                request_body["messages"][-1]["content"] = response_json
             
         history_metadata["conversation_id"] = conversation_id
         request_body["history_metadata"] = history_metadata
