@@ -518,6 +518,7 @@ async def add_conversation():
     ## check request for conversation_id
     request_json = await request.get_json()
     conversation_id = request_json.get("conversation_id", None)
+    response_json = ""
 
     # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
     try:
@@ -537,17 +538,17 @@ async def add_conversation():
                     longitude = 21.2087
                     try:
                         temperature = get_weather(latitude, longitude)
-                        return jsonify({
+                        response_json = jsonify({
                             "id": last_message.get("id", "weather-report"),
                             "role": "assistant",
                             "content": f"Temperatura curentă în Timișoara este {temperature}°C."
                         })
                     except Exception as e:
                         logging.exception("Eroare la preluarea vremii")
-                        return jsonify({"error": "Nu am putut prelua raportul meteo."}), 500
+                        response_json = jsonify({"error": "Nu am putut prelua raportul meteo."}), 500
     except Exception as e:
         logging.exception("Eroare la procesarea cererii pentru rapoarte")
-        return jsonify({"error": "Nu am putut procesa cererea pentru rapoarte."}), 500
+        response_json = jsonify({"error": "Nu am putut procesa cererea pentru rapoarte."}), 500
     # --- Sfârșit cod adăugat ---
 
     try:
@@ -586,7 +587,10 @@ async def add_conversation():
             raise Exception("No user message found")
 
         # Submit request to Chat Completions for response
-        request_body = await request.get_json()
+        if response_json != "":
+            request_body = response_json
+        else:
+            request_body = await request.get_json()
         history_metadata["conversation_id"] = conversation_id
         request_body["history_metadata"] = history_metadata
         return await conversation_internal(request_body, request.headers)
