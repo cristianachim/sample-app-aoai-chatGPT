@@ -460,7 +460,7 @@ async def conversation():
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
 
-    # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
+    # Fix: acceptă orice variantă cu "rapoarte" și "astăzi" în mesaj
     try:
         messages = request_json.get("messages", [])
         if messages and isinstance(messages, list):
@@ -472,9 +472,8 @@ async def conversation():
                         if unicodedata.category(c) != 'Mn'
                     )
                 content_norm = normalize(last_message["content"])
-                # Prinde variante ca: afiseaza rapoartele de astazi
-                if "afiseaza rapoartele de astazi" in content_norm:
-                    # Exemplu: Timișoara lat/lon
+                # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
+                if "rapoarte" in content_norm and "astazi" in content_norm:
                     latitude = 45.7489
                     longitude = 21.2087
                     try:
@@ -492,6 +491,11 @@ async def conversation():
         return jsonify({"error": "Nu am putut procesa cererea pentru rapoarte."}), 500
     # --- Sfârșit cod adăugat ---
 
+    return jsonify({
+        "id":  "112",
+        "role": "assistant",
+        "content": "Functia mea"
+    })
     return await conversation_internal(request_json, request.headers)
 
 
