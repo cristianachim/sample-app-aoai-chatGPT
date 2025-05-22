@@ -6,7 +6,6 @@ import uuid
 import httpx
 import asyncio
 import requests
-import re
 from datetime import datetime, timezone
 from functools import wraps
 from quart import (
@@ -459,27 +458,6 @@ async def conversation():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
-
-    # --- Adăugat: verifică dacă întrebarea este despre știrile din Timișoara ---
-    try:
-        messages = request_json.get("messages", [])
-        if messages and isinstance(messages, list):
-            last_message = messages[-1]
-            if (
-                last_message.get("role") == "user"
-                and isinstance(last_message.get("content"), str)
-                and re.search(r"\braport?\s+Lives\b", last_message["content"].lower())
-            ):
-                news = await fetch_timisoara_news()
-                return jsonify({
-                    "id": last_message.get("id", "timisoara-news"),
-                    "role": "assistant",
-                    "content": news
-                })
-    except Exception as e:
-        logging.exception("Eroare la preluarea știrilor Timișoara")
-        return jsonify({"error": "Nu am putut prelua știrile despre Timișoara."}), 500
-    # --- Sfârșit cod adăugat ---
 
     return await conversation_internal(request_json, request.headers)
 
@@ -962,10 +940,8 @@ async def generate_title(conversation_messages) -> str:
     try:
         azure_openai_client = await init_openai_client()
         response = await azure_openai_client.chat.completions.create(
-            model=app_settings.azure_openai.model, messages=messages, temperature=1, max_tokens=64,tools=tools
+            model=app_settings.azure_openai.model, messages=messages, temperature=1, max_tokens=64
         )
-
-
 
         title = response.choices[0].message.content
         return title
@@ -973,30 +949,5 @@ async def generate_title(conversation_messages) -> str:
         logging.exception("Exception while generating title", e)
         return messages[-2]["content"]
 
-
-# News API settings
-NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "demo")  # pune cheia ta reală aici
-NEWS_API_URL = "https://newsapi.org/v2/everything"
-
-async def fetch_timisoara_news():
-    params = {
-        "q": "Timisoara",
-        "language": "ro",
-        "sortBy": "publishedAt",
-        "apiKey": NEWS_API_KEY,
-        "pageSize": 5
-    }
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(NEWS_API_URL, params=params)
-        data = resp.json()
-        if data.get("status") == "ok":
-            articles = data.get("articles", [])
-            news_list = [
-                f"{idx+1}. {a['title']} ({a['source']['name']}) - {a['url']}"
-                for idx, a in enumerate(articles)
-            ]
-            return "\n".join(news_list) if news_list else "Nu am găsit știri recente despre Timișoara."
-        else:
-            return "Nu am putut prelua știrile despre Timișoara."
 
 app = create_app()
