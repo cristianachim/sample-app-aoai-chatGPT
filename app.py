@@ -8,6 +8,7 @@ import asyncio
 import requests
 from datetime import datetime, timezone
 from functools import wraps
+import unicodedata
 from quart import (
     Blueprint,
     Quart,
@@ -458,6 +459,38 @@ async def conversation():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
+
+    # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
+    try:
+        messages = request_json.get("messages", [])
+        if messages and isinstance(messages, list):
+            last_message = messages[-1]
+            if last_message.get("role") == "user" and isinstance(last_message.get("content"), str):
+                def normalize(s):
+                    return ''.join(
+                        c for c in unicodedata.normalize('NFD', s.lower())
+                        if unicodedata.category(c) != 'Mn'
+                    )
+                content_norm = normalize(last_message["content"])
+                # Prinde variante ca: afiseaza rapoartele de astazi
+                if "afiseaza rapoartele de astazi" in content_norm:
+                    # Exemplu: Timișoara lat/lon
+                    latitude = 45.7489
+                    longitude = 21.2087
+                    try:
+                        temperature = get_weather(latitude, longitude)
+                        return jsonify({
+                            "id": last_message.get("id", "weather-report"),
+                            "role": "assistant",
+                            "content": f"Temperatura curentă în Timișoara este {temperature}°C."
+                        })
+                    except Exception as e:
+                        logging.exception("Eroare la preluarea vremii")
+                        return jsonify({"error": "Nu am putut prelua raportul meteo."}), 500
+    except Exception as e:
+        logging.exception("Eroare la procesarea cererii pentru rapoarte")
+        return jsonify({"error": "Nu am putut procesa cererea pentru rapoarte."}), 500
+    # --- Sfârșit cod adăugat ---
 
     return await conversation_internal(request_json, request.headers)
 
@@ -948,6 +981,11 @@ async def generate_title(conversation_messages) -> str:
     except Exception as e:
         logging.exception("Exception while generating title", e)
         return messages[-2]["content"]
+
+def get_weather(latitude, longitude):
+    response = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m")
+    data = response.json()
+    return data['current']['temperature_2m']
 
 
 app = create_app()
