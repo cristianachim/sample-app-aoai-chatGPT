@@ -587,10 +587,11 @@ async def add_conversation():
             raise Exception("No user message found")
 
         # Submit request to Chat Completions for response
+        request_body = await request.get_json()
         if response_json != "":
-            request_body = response_json
-        else:
-            request_body = await request.get_json()
+            if request_body["content"] != "":
+                request_body["content"] = response_json["content"]
+            
         history_metadata["conversation_id"] = conversation_id
         request_body["history_metadata"] = history_metadata
         return await conversation_internal(request_body, request.headers)
