@@ -538,17 +538,14 @@ async def add_conversation():
                     longitude = 21.2087
                     try:
                         temperature = get_weather(latitude, longitude)
-                        response_json = jsonify({
-                            "id": last_message.get("id", "weather-report"),
-                            "role": "assistant",
-                            "content": f"Temperatura curentă în Timișoara este {temperature}°C."
-                        })
+                        response_json = f"Temperatura curentă în Timișoara este {temperature}°C."
+                        
                     except Exception as e:
                         logging.exception("Eroare la preluarea vremii")
-                        response_json = jsonify({"error": "Nu am putut prelua raportul meteo."}), 500
+                        response_json = "Nu am putut prelua raportul meteo."
     except Exception as e:
         logging.exception("Eroare la procesarea cererii pentru rapoarte")
-        response_json = jsonify({"error": "Nu am putut procesa cererea pentru rapoarte."}), 500
+        response_json =  "Nu am putut procesa cererea pentru rapoarte."
     # --- Sfârșit cod adăugat ---
 
     try:
@@ -589,8 +586,7 @@ async def add_conversation():
         # Submit request to Chat Completions for response
         request_body = await request.get_json()
         if response_json != "":
-            if request_body["content"] != "":
-                request_body["content"] = response_json["content"]
+            request_body["content"] = response_json
             
         history_metadata["conversation_id"] = conversation_id
         request_body["history_metadata"] = history_metadata
