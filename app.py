@@ -519,6 +519,37 @@ async def add_conversation():
     request_json = await request.get_json()
     conversation_id = request_json.get("conversation_id", None)
 
+    # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
+    try:
+        messages = request_json.get("messages", [])
+        if messages and isinstance(messages, list):
+            last_message = messages[-1]
+            if last_message.get("role") == "user" and isinstance(last_message.get("content"), str):
+                def normalize(s):
+                    return ''.join(
+                        c for c in unicodedata.normalize('NFD', s.lower())
+                        if unicodedata.category(c) != 'Mn'
+                    )
+                content_norm = normalize(last_message["content"])
+                # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
+                if "rapoarte" in content_norm and "astazi" in content_norm:
+                    latitude = 45.7489
+                    longitude = 21.2087
+                    try:
+                        temperature = get_weather(latitude, longitude)
+                        return jsonify({
+                            "id": last_message.get("id", "weather-report"),
+                            "role": "assistant",
+                            "content": f"Temperatura curentă în Timișoara este {temperature}°C."
+                        })
+                    except Exception as e:
+                        logging.exception("Eroare la preluarea vremii")
+                        return jsonify({"error": "Nu am putut prelua raportul meteo."}), 500
+    except Exception as e:
+        logging.exception("Eroare la procesarea cererii pentru rapoarte")
+        return jsonify({"error": "Nu am putut procesa cererea pentru rapoarte."}), 500
+    # --- Sfârșit cod adăugat ---
+
     try:
         # make sure cosmos is configured
         if not current_app.cosmos_conversation_client:
