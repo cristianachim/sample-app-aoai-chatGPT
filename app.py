@@ -1027,7 +1027,7 @@ async def generate_title(conversation_messages) -> str:
 
 def get_study_data():
     response = requests.get(f"https://medisol.xpertlog.net/api/study")
-    logging.info(f"Response from study data API: {response}")
+    logging.exception(f"Response from study data API: {response}")
     return response;
 
 
