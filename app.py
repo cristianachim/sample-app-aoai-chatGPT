@@ -474,18 +474,13 @@ async def conversation():
                 content_norm = normalize(last_message["content"])
                 # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
                 if "rapoarte" in content_norm and "astazi" in content_norm:
-                    latitude = 45.7489
-                    longitude = 21.2087
+
                     try:
-                        temperature = get_weather(latitude, longitude)
-                        return jsonify({
-                            "id": last_message.get("id", "weather-report"),
-                            "role": "assistant",
-                            "content": f"Temperatura curentă în Timișoara este {temperature}°C."
-                        })
+                        study_data = get_study_data()
+                        return study_data
                     except Exception as e:
-                        logging.exception("Eroare la preluarea vremii")
-                        return jsonify({"error": "Nu am putut prelua raportul meteo."}), 500
+                        logging.exception("Eroare la preluarea study data")
+                        return jsonify({"error": "Eroare la preluarea study data"}), 500
     except Exception as e:
         logging.exception("Eroare la procesarea cererii pentru rapoarte")
         return jsonify({"error": "Nu am putut procesa cererea pentru rapoarte."}), 500
@@ -534,15 +529,12 @@ async def add_conversation():
                 content_norm = normalize(last_message["content"])
                 # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
                 if "rapoarte" in content_norm and "astazi" in content_norm:
-                    latitude = 45.7489
-                    longitude = 21.2087
                     try:
-                        temperature = get_weather(latitude, longitude)
-                        response_json = f"Temperatura curentă în Timișoara este {temperature}°C."
-                        
+                        study_data = get_study_data()
+                        response_json = study_data
                     except Exception as e:
-                        logging.exception("Eroare la preluarea vremii")
-                        response_json = "Nu am putut prelua raportul meteo."
+                        logging.exception("Eroare la preluarea study data")
+                        response_json = "Nu am putut prelua raportul study data."
     except Exception as e:
         logging.exception("Eroare la procesarea cererii pentru rapoarte")
         response_json =  "Nu am putut procesa cererea pentru rapoarte."
@@ -1020,10 +1012,9 @@ async def generate_title(conversation_messages) -> str:
         logging.exception("Exception while generating title", e)
         return messages[-2]["content"]
 
-def get_weather(latitude, longitude):
-    response = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m")
-    data = response.json()
-    return data['current']['temperature_2m']
+def get_study_data():
+    response = requests.get(f"https://medisol.xpertlog.net/api/study")
+    return response;
 
 
 app = create_app()
