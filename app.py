@@ -522,6 +522,8 @@ async def add_conversation():
     conversation_id = request_json.get("conversation_id", None)
     response_json = ""
 
+    logging.info(f"History  entry")
+
     # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
     try:
         messages = request_json.get("messages", [])
