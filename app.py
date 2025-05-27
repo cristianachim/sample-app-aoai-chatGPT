@@ -480,7 +480,7 @@ async def conversation():
                         return jsonify({
                             "id": last_message.get("id"),
                             "role": "assistant",
-                            "content": study_data
+                            "content": "merge",
                         })
 
                     except Exception as e:
