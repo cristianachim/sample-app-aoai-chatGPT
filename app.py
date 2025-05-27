@@ -541,11 +541,7 @@ async def add_conversation():
                     try:
                         logging.exception(f"Response ID: {last_message.get('id')}")
                         study_data = get_study_data()
-                        response_json = jsonify({
-                            "id": last_message.get("id"),
-                            "role": "assistant",
-                            "content": "merge"
-                        })
+                        response_json = study_data
                         logging.exception(f"Response from study data API: {study_data}")
                     except Exception as e:
                         logging.exception("Eroare la preluarea study data")
