@@ -476,6 +476,8 @@ async def conversation():
                 if "rapoarte" in content_norm and "astazi" in content_norm:
 
                     try:
+                        logging.info(f"Response data entry")
+                        logging.info(f"Response ID: {last_message.get('id')}")
                         study_data = get_study_data()
                         return jsonify({
                             "id": last_message.get("id"),
@@ -535,8 +537,9 @@ async def add_conversation():
                 # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
                 if "rapoarte" in content_norm and "astazi" in content_norm:
                     try:
-                        study_data = get_study_data()
+                        logging.info(f"Response data entry")
                         logging.info(f"Response ID: {last_message.get('id')}")
+                        study_data = get_study_data()
                         response_json = jsonify({
                             "id": last_message.get("id"),
                             "role": "assistant",
