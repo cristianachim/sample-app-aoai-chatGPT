@@ -536,11 +536,13 @@ async def add_conversation():
                 if "rapoarte" in content_norm and "astazi" in content_norm:
                     try:
                         study_data = get_study_data()
+                        logging.info(f"Response ID: {last_message.get('id')}")
                         response_json = jsonify({
                             "id": last_message.get("id"),
                             "role": "assistant",
                             "content": "merge"
                         })
+                        logging.info(f"Response from study data API: {study_data}")
                     except Exception as e:
                         logging.exception("Eroare la preluarea study data")
                         response_json = "Nu am putut prelua raportul study data."
@@ -1023,6 +1025,7 @@ async def generate_title(conversation_messages) -> str:
 
 def get_study_data():
     response = requests.get(f"https://medisol.xpertlog.net/api/study")
+    logging.info(f"Response from study data API: {response}")
     return response;
 
 
