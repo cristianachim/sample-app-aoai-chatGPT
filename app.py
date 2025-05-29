@@ -1035,8 +1035,7 @@ def get_study_data():
         logging.exception(f"Failed to fetch study data, status: {response.status_code}")
         return {"error": f"Failed to fetch study data, status: {response.status_code}"}
 
-  
-    return response
+
 
 
 app = create_app()
