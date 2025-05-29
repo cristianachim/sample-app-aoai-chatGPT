@@ -542,6 +542,20 @@ async def add_conversation():
                         logging.exception(f"Response ID: {last_message.get('id')}")
                         study_data = get_study_data()
                         response_json = study_data
+                        # Dacă există date, extrage URL-urile și returnează-le ca răspuns
+                        if response_json:
+                            urls = []
+                            # presupunem că response_json este dict cu cheie "data" care e listă de dict-uri cu cheie "url"
+                            data = response_json.get("data", [])
+                            for item in data:
+                                url = item.get("url")
+                                if url:
+                                    urls.append(url)
+                            return jsonify({
+                                "id": str(uuid.uuid4()),
+                                "role": "assistant",
+                                "content": "\n".join(urls) if urls else "Nu am găsit niciun URL."
+                            })
                     except Exception as e:
                         logging.exception("Eroare la preluarea study data")
                         response_json = "Nu am putut prelua raportul study data."
@@ -589,10 +603,10 @@ async def add_conversation():
         request_body = await request.get_json()
         logging.exception(f"Request body: {request_body}")
         logging.exception(f"Content body: {request_body['messages'][-1]['content']}")
-        if response_json != "":
+        #if response_json != "":
             # Înlocuiește content-ul ultimului mesaj din messages
-            if "messages" in request_body and isinstance(request_body["messages"], list) and len(request_body["messages"]) > 0:
-                request_body["messages"][-1]["content"] = response_json
+            #if "messages" in request_body and isinstance(request_body["messages"], list) and len(request_body["messages"]) > 0:
+                #request_body["messages"][-1]["content"] = ""
             
         history_metadata["conversation_id"] = conversation_id
         request_body["history_metadata"] = history_metadata
