@@ -551,10 +551,16 @@ async def add_conversation():
                                 url = item.get("url")
                                 if url:
                                     urls.append(url)
+
                             return jsonify({
                                 "id": str(uuid.uuid4()),
                                 "role": "assistant",
-                                "content": "\n".join(urls) if urls else "Nu am găsit niciun URL."
+                                "type": "message",
+                                "userId": user_id,
+                                "conversationId": conversation_id,
+                                "content": "\n".join(urls) if urls else "Nu am găsit niciun URL.",
+                                "createdAt": datetime.now(timezone.utc).isoformat(),
+                                "feedback": None
                             })
                     except Exception as e:
                         logging.exception("Eroare la preluarea study data")
@@ -1042,7 +1048,7 @@ def get_study_data():
     response = requests.get(f"https://medisol.xpertlog.net/api/study?t=3f9cc12b-aeec-4d7e-b1b6-a1e3b5e13892")
     
     if response.status_code == 200:
-        logging.exception(f"Response from study data API: {response.json()}")
+        #logging.exception(f"Response from study data API: {response.json()}")
         return response.json()
     else:
         logging.exception(f"Failed to fetch study data, status: {response.status_code}")
