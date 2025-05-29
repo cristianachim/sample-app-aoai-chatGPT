@@ -542,7 +542,7 @@ async def add_conversation():
                         logging.exception(f"Response ID: {last_message.get('id')}")
                         study_data = get_study_data()
                         response_json = study_data
-                        # Dacă există date, extrage URL-urile și returnează-le ca răspuns
+                        # Dacă există date, extrace URL-urile și returnează-le ca răspuns
                         if response_json:
                             urls = []
                             # presupunem că response_json este dict cu cheie "data" care e listă de dict-uri cu cheie "url"
@@ -553,15 +553,20 @@ async def add_conversation():
                                     urls.append(url)
 
                             return jsonify({
-                                "id": str(uuid.uuid4()),
-                                "role": "assistant",
-                                "type": "message",
-                                "userId": user_id,
-                                "conversationId": conversation_id,
-                                "content": "\n".join(urls) if urls else "Nu am găsit niciun URL.",
-                                "createdAt": datetime.now(timezone.utc).isoformat(),
-                                "feedback": None
+                                "messages": [
+                                    {
+                                        "id": str(uuid.uuid4()),
+                                        "role": "assistant",
+                                        "type": "message",
+                                        "userId": user_id,
+                                        "conversationId": conversation_id,
+                                        "content": "\n".join(urls) if urls else "Nu am găsit niciun URL.",
+                                        "createdAt": datetime.now(timezone.utc).isoformat(),
+                                        "feedback": None
+                                    }
+                                ]
                             })
+
                     except Exception as e:
                         logging.exception("Eroare la preluarea study data")
                         response_json = "Nu am putut prelua raportul study data."
