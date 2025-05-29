@@ -1027,7 +1027,15 @@ async def generate_title(conversation_messages) -> str:
 
 def get_study_data():
     response = requests.get(f"https://medisol.xpertlog.net/api/study?t=3f9cc12b-aeec-4d7e-b1b6-a1e3b5e13892")
-    logging.exception(f"Response from study data API: {response}")
+    
+    if response.status_code == 200:
+        logging.exception(f"Response from study data API: {response.json()}")
+        return response.json()
+    else:
+        logging.exception(f"Failed to fetch study data, status: {response.status_code}")
+        return {"error": f"Failed to fetch study data, status: {response.status_code}"}
+
+  
     return response
 
 
