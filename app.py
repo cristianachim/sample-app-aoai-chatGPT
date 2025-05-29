@@ -561,15 +561,28 @@ async def add_conversation():
                                 "role": "assistant",
                                 "content": content_str,
                             }
-                            aa = jsonify(format_pf_non_streaming_response(
-                                response_obj,
-                                history_metadata,
-                                app_settings.promptflow.response_field_name,
-                                app_settings.promptflow.citations_field_name    # field name pentru citations, dacă nu ai, pune None
-                            ))
 
-                            logging.exception(f"aa: {aa}")
-                            return aa
+                            messages = []
+                            messages.append({
+                                "role": "assistant",
+                                "content": content_str
+                            })
+                            history_metadata = request_json.get("history_metadata", {})
+
+
+                            response_obj = {
+                                "id": str(uuid.uuid4()),
+                                "history_metadata": history_metadata,
+                                "choices": [
+                                    {
+                                        "messages": messages,
+                                    }
+                            ]
+                            }
+
+
+                            logging.exception(f"response_obj: {response_obj}")
+                            return response_obj
                             # ...existing code...
                     except Exception as e:
                         logging.exception("Eroare la preluarea study data")
