@@ -554,17 +554,22 @@ async def add_conversation():
 
 
                             content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
+
+                            logging.exception(f"content_str: {content_str}")
                             response_obj = {
                                 "id": str(uuid.uuid4()),
                                 "role": "assistant",
                                 "content": content_str,
                             }
-                            return jsonify(format_pf_non_streaming_response(
+                            aa = jsonify(format_pf_non_streaming_response(
                                 response_obj,
                                 history_metadata,
                                 app_settings.promptflow.response_field_name,
                                 app_settings.promptflow.citations_field_name    # field name pentru citations, dacă nu ai, pune None
                             ))
+
+                            logging.exception(f"aa: {aa}")
+                            return aa
                             # ...existing code...
                     except Exception as e:
                         logging.exception("Eroare la preluarea study data")
