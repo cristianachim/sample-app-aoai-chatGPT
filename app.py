@@ -556,17 +556,7 @@ async def add_conversation():
                             content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
 
                             logging.exception(f"content_str: {content_str}")
-                            response_obj = {
-                                "id": str(uuid.uuid4()),
-                                "role": "assistant",
-                                "content": content_str,
-                            }
-
-                            messages = []
-                            messages.append({
-                                "role": "assistant",
-                                "content": content_str
-                            })
+                            last_message["content"] = content_str
                             history_metadata = request_json.get("history_metadata", {})
 
 
