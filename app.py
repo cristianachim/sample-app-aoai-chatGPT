@@ -552,28 +552,30 @@ async def add_conversation():
                                 if url:
                                     urls.append(url)
 
-
                             content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
-
-                            logging.exception(f"content_str: {content_str}")
+                            # Înlocuiește content-ul ultimului mesaj cu răspunsul
                             last_message["content"] = content_str
-                            history_metadata = request_json.get("history_metadata", {})
 
-
-                            response_obj = {
+                            # Salvează mesajul assistant în CosmosDB
+                            assistant_message = {
                                 "id": str(uuid.uuid4()),
-                                "history_metadata": history_metadata,
-                                "choices": [
-                                    {
-                                        "messages": messages,
-                                    }
-                            ]
+                                "role": "assistant",
+                                "content": content_str,
+                                "createdAt": datetime.now(timezone.utc).isoformat(),
+                                "feedback": None,
                             }
+                            await current_app.cosmos_conversation_client.create_message(
+                                uuid=assistant_message["id"],
+                                conversation_id=conversation_id,
+                                user_id=user_id,
+                                input_message=assistant_message,
+                            )
 
+                            # Returnează răspunsul către frontend
+                            return jsonify({
+                                "messages": [assistant_message]
+                            })
 
-                            logging.exception(f"response_obj: {response_obj}")
-                            return response_obj
-                            # ...existing code...
                     except Exception as e:
                         logging.exception("Eroare la preluarea study data")
                         response_json = "Nu am putut prelua raportul study data."
