@@ -436,8 +436,6 @@ async def stream_chat_request(request_body, request_headers):
 
 async def conversation_internal(request_body, request_headers):    
 
-    logging.exception(f"conversation_internal  entry")
-
     # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
     try:
         messages = request_body.get("messages", [])
