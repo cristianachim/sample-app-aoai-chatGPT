@@ -463,8 +463,10 @@ async def conversation_internal(request_body, request_headers):
                             data = response_json.get("data", [])
                             for item in data:
                                 url = item.get("url")
+                                name = item.get("name")
+                                startAt = item.get("startAt")
                                 if url:
-                                    urls.append("https://medisol.xpertlog.net" + url + "\n")
+                                    urls.append(f"Name: {name} Date: {startAt} = https://medisol.xpertlog.net" + url + "\n")
 
 
                             content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
