@@ -450,8 +450,8 @@ async def conversation_internal(request_body, request_headers):
                         if unicodedata.category(c) != 'Mn'
                     )
                 content_norm = normalize(last_message["content"])
-                # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
-                if "rapoarte" in content_norm and "astazi" in content_norm:
+                # Caută ambele cuvinte "show me all studies" în mesaj
+                if "show me all studies" in content_norm:
                     try:
                         logging.exception(f"Response ID: {last_message.get('id')}")
                         study_data = get_study_data()
