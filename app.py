@@ -464,7 +464,7 @@ async def conversation_internal(request_body, request_headers):
                             for item in data:
                                 url = item.get("url")
                                 if url:
-                                    urls.append(url)
+                                    urls.append("https://medisol.xpertlog.net" + url + "\n")
 
 
                             content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
