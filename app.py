@@ -453,7 +453,6 @@ async def conversation_internal(request_body, request_headers):
                 # Caută ambele cuvinte "show me all studies" în mesaj
                 if "show me all studies" in content_norm:
                     try:
-                        logging.exception(f"Response ID: {last_message.get('id')}")
                         study_data = get_study_data()
                         response_json = study_data
                         # Dacă există date, extrace URL-urile și returnează-le ca răspuns
@@ -466,12 +465,12 @@ async def conversation_internal(request_body, request_headers):
                                 name = item.get("name")
                                 startAt = item.get("startAt")
                                 if url:
-                                    urls.append(f"Name: {name} Date: {startAt} = https://medisol.xpertlog.net" + url + "\n")
+                                    urls.append(f"Name: {name} +/nDate: {startAt} +/nURL: https://medisol.xpertlog.net" + url + "\n")
 
 
                             content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
 
-                            logging.exception(f"content_str: {content_str}")
+        
                             response_obj = {
                                 "id": str(uuid.uuid4()),
                                 "role": "assistant",
@@ -500,11 +499,9 @@ async def conversation_internal(request_body, request_headers):
                             }
 
 
-                            logging.exception(f"response_obj: {response_obj}")
                             return response_obj
                             # ...existing code...
                     except Exception as e:
-                        logging.exception("Eroare la preluarea study data")
                         return jsonify("Nu am putut prelua raportul study data.")
                     
             
@@ -513,12 +510,10 @@ async def conversation_internal(request_body, request_headers):
             response = await make_response(format_as_ndjson(result))
             response.timeout = None
             response.mimetype = "application/json-lines"
-
-            logging.exception(f"conversation_internal  response", response)
             return response
         else:
             result = await complete_chat_request(request_body, request_headers)
-            logging.exception(f"conversation_internal  result", result)
+
             return jsonify(result)
 
     except Exception as ex:
@@ -534,45 +529,6 @@ async def conversation():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
-
-    # Fix: acceptă orice variantă cu "rapoarte" și "astăzi" în mesaj
-    try:
-        messages = request_json.get("messages", [])
-        if messages and isinstance(messages, list):
-            last_message = messages[-1]
-            if last_message.get("role") == "user" and isinstance(last_message.get("content"), str):
-                def normalize(s):
-                    return ''.join(
-                        c for c in unicodedata.normalize('NFD', s.lower())
-                        if unicodedata.category(c) != 'Mn'
-                    )
-                content_norm = normalize(last_message["content"])
-                # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
-                if "rapoarte" in content_norm and "astazi" in content_norm:
-
-                    try:
-                        logging.info(f"Response data entry")
-                        logging.info(f"Response ID: {last_message.get('id')}")
-                        study_data = get_study_data()
-                        return jsonify({
-                            "id": last_message.get("id"),
-                            "role": "assistant",
-                            "content": "merge",
-                        })
-
-                    except Exception as e:
-                        logging.exception("Eroare la preluarea study data")
-                        return jsonify({"error": "Eroare la preluarea study data"}), 500
-    except Exception as e:
-        logging.exception("Eroare la procesarea cererii pentru rapoarte")
-        return jsonify({"error": "Nu am putut procesa cererea pentru rapoarte."}), 500
-    # --- Sfârșit cod adăugat ---
-
-    return jsonify({
-        "id":  "112",
-        "role": "assistant",
-        "content": "Functia mea"
-    })
     return await conversation_internal(request_json, request.headers)
 
 
@@ -633,12 +589,6 @@ async def add_conversation():
 
         # Submit request to Chat Completions for response
         request_body = await request.get_json()
-        logging.exception(f"Request body: {request_body}")
-        logging.exception(f"Content body: {request_body['messages'][-1]['content']}")
-        #if response_json != "":
-            # Înlocuiește content-ul ultimului mesaj din messages
-            #if "messages" in request_body and isinstance(request_body["messages"], list) and len(request_body["messages"]) > 0:
-                #request_body["messages"][-1]["content"] = ""
             
         history_metadata["conversation_id"] = conversation_id
         request_body["history_metadata"] = history_metadata
@@ -1077,7 +1027,6 @@ def get_study_data():
         #logging.exception(f"Response from study data API: {response.json()}")
         return response.json()
     else:
-        logging.exception(f"Failed to fetch study data, status: {response.status_code}")
         return {"error": f"Failed to fetch study data, status: {response.status_code}"}
 
 
