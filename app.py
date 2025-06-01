@@ -436,10 +436,6 @@ async def stream_chat_request(request_body, request_headers):
 
 async def conversation_internal(request_body, request_headers):    
 
-    ## check request for conversation_id
-    conversation_id = request_body.get("conversation_id", None)
-    response_json = ""
-
     logging.exception(f"conversation_internal  entry")
 
     # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
@@ -593,6 +589,10 @@ async def add_conversation():
     await cosmos_db_ready.wait()
     authenticated_user = get_authenticated_user_details(request_headers=request.headers)
     user_id = authenticated_user["user_principal_id"]
+
+    ## check request for conversation_id
+    request_json = await request.get_json()
+    conversation_id = request_json.get("conversation_id", None)
 
     try:
         # make sure cosmos is configured
