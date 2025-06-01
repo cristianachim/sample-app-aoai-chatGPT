@@ -434,16 +434,93 @@ async def stream_chat_request(request_body, request_headers):
     return generate()
 
 
-async def conversation_internal(request_body, request_headers):
+async def conversation_internal(request_body, request_headers):    
+
+    ## check request for conversation_id
+    conversation_id = request_body.get("conversation_id", None)
+    response_json = ""
+
+    logging.exception(f"conversation_internal  entry")
+
+    # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
     try:
+        messages = request_body.get("messages", [])
+        if messages and isinstance(messages, list):
+            last_message = messages[-1]
+            if last_message.get("role") == "user" and isinstance(last_message.get("content"), str):
+                def normalize(s):
+                    return ''.join(
+                        c for c in unicodedata.normalize('NFD', s.lower())
+                        if unicodedata.category(c) != 'Mn'
+                    )
+                content_norm = normalize(last_message["content"])
+                # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
+                if "rapoarte" in content_norm and "astazi" in content_norm:
+                    try:
+                        logging.exception(f"Response ID: {last_message.get('id')}")
+                        study_data = get_study_data()
+                        response_json = study_data
+                        # Dacă există date, extrace URL-urile și returnează-le ca răspuns
+                        if response_json:
+                            urls = []
+                            # presupunem că response_json este dict cu cheie "data" care e listă de dict-uri cu cheie "url"
+                            data = response_json.get("data", [])
+                            for item in data:
+                                url = item.get("url")
+                                if url:
+                                    urls.append(url)
+
+
+                            content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
+
+                            logging.exception(f"content_str: {content_str}")
+                            response_obj = {
+                                "id": str(uuid.uuid4()),
+                                "role": "assistant",
+                                "content": content_str,
+                            }
+
+                            messages = []
+                            messages.append({
+                                "role": "assistant",
+                                "content": content_str
+                            })
+                            history_metadata = request_body.get("history_metadata", {})
+
+
+                            response_obj = {
+                                "id": str(uuid.uuid4()),
+                                "model": "",
+                                "created": "",
+                                "object": "",
+                                "history_metadata": history_metadata,
+                                "choices": [
+                                    {
+                                        "messages": messages,
+                                    }
+                                ]
+                            }
+
+
+                            logging.exception(f"response_obj: {response_obj}")
+                            return response_obj
+                            # ...existing code...
+                    except Exception as e:
+                        logging.exception("Eroare la preluarea study data")
+                        return jsonify("Nu am putut prelua raportul study data.")
+                    
+            
         if app_settings.azure_openai.stream and not app_settings.base_settings.use_promptflow:
             result = await stream_chat_request(request_body, request_headers)
             response = await make_response(format_as_ndjson(result))
             response.timeout = None
             response.mimetype = "application/json-lines"
+
+            logging.exception(f"conversation_internal  response", response)
             return response
         else:
             result = await complete_chat_request(request_body, request_headers)
+            logging.exception(f"conversation_internal  result", result)
             return jsonify(result)
 
     except Exception as ex:
@@ -516,73 +593,6 @@ async def add_conversation():
     await cosmos_db_ready.wait()
     authenticated_user = get_authenticated_user_details(request_headers=request.headers)
     user_id = authenticated_user["user_principal_id"]
-
-    ## check request for conversation_id
-    request_json = await request.get_json()
-    conversation_id = request_json.get("conversation_id", None)
-    response_json = ""
-
-    logging.exception(f"History  entry")
-
-    # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
-    try:
-        messages = request_json.get("messages", [])
-        if messages and isinstance(messages, list):
-            last_message = messages[-1]
-            if last_message.get("role") == "user" and isinstance(last_message.get("content"), str):
-                def normalize(s):
-                    return ''.join(
-                        c for c in unicodedata.normalize('NFD', s.lower())
-                        if unicodedata.category(c) != 'Mn'
-                    )
-                content_norm = normalize(last_message["content"])
-                # Caută ambele cuvinte "rapoarte" și "astazi" în mesaj
-                if "rapoarte" in content_norm and "astazi" in content_norm:
-                    try:
-                        logging.exception(f"Response ID: {last_message.get('id')}")
-                        study_data = get_study_data()
-                        response_json = study_data
-                        # Dacă există date, extrace URL-urile și returnează-le ca răspuns
-                        if response_json:
-                            urls = []
-                            # presupunem că response_json este dict cu cheie "data" care e listă de dict-uri cu cheie "url"
-                            data = response_json.get("data", [])
-                            for item in data:
-                                url = item.get("url")
-                                if url:
-                                    urls.append(url)
-
-                            content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
-                            # Înlocuiește content-ul ultimului mesaj cu răspunsul
-                            last_message["content"] = content_str
-
-                            # Salvează mesajul assistant în CosmosDB
-                            assistant_message = {
-                                "id": str(uuid.uuid4()),
-                                "role": "assistant",
-                                "content": content_str,
-                                "createdAt": datetime.now(timezone.utc).isoformat(),
-                                "feedback": None,
-                            }
-                            await current_app.cosmos_conversation_client.create_message(
-                                uuid=assistant_message["id"],
-                                conversation_id=conversation_id,
-                                user_id=user_id,
-                                input_message=assistant_message,
-                            )
-
-                            # Returnează răspunsul către frontend
-                            return jsonify({
-                                "messages": [assistant_message]
-                            })
-
-                    except Exception as e:
-                        logging.exception("Eroare la preluarea study data")
-                        response_json = "Nu am putut prelua raportul study data."
-    except Exception as e:
-        logging.exception("Eroare la procesarea cererii pentru rapoarte")
-        response_json =  "Nu am putut procesa cererea pentru rapoarte."
-    # --- Sfârșit cod adăugat ---
 
     try:
         # make sure cosmos is configured
