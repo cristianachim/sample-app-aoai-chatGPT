@@ -463,8 +463,10 @@ async def conversation_internal(request_body, request_headers):
                                 name = item.get("name")
                                 startAt = item.get("startAt")
                                 if url:
+                                    # Formatează data să fie doar data calendaristică (fără timp)
+                                    date_only = startAt.split("T")[0] if startAt else ""
                                     urls.append(f"Name: {name}")
-                                    urls.append(f"Date: {startAt}")
+                                    urls.append(f"Date: {date_only}")
                                     urls.append(f"URL: https://medisol.xpertlog.net{url}\n")
 
                             content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
