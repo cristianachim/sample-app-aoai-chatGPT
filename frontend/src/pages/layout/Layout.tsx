@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { Link, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { Dialog, Stack, TextField } from '@fluentui/react'
 import { CopyRegular } from '@fluentui/react-icons'
 
@@ -79,9 +79,9 @@ const Layout = () => {
         <Stack horizontal verticalAlign="center" horizontalAlign="space-between">
           <Stack horizontal verticalAlign="center">
             <img src={logo} className={styles.headerIcon} aria-hidden="true" alt="" />
-            <Link to="/" className={styles.headerTitleContainer}>
+            <div className={styles.headerTitleContainer}>
               <h1 className={styles.headerTitle}>{ui?.title}</h1>
-            </Link>
+            </div>
           </Stack>
           <Stack horizontal tokens={{ childrenGap: 4 }} className={styles.shareButtonContainer}>
             {appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && ui?.show_chat_history_button !== false && (

@@ -5,6 +5,10 @@ import logging
 import uuid
 import httpx
 import asyncio
+import requests
+from datetime import datetime, timezone
+from functools import wraps
+import unicodedata
 from quart import (
     Blueprint,
     Quart,
@@ -40,6 +44,51 @@ bp = Blueprint("routes", __name__, static_folder="static", template_folder="stat
 
 cosmos_db_ready = asyncio.Event()
 
+# Replace with your expected service account email
+EXPECTED_AUD = "103295589319492588204"
+
+
+def validate_google_token(token: str) -> bool:
+    try:
+        response = requests.get(f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}")
+        data = response.json()
+
+        if "error" in data:
+            print(f"Token validation failed: {data['error_description']}")
+            return False
+
+        # Verifică dacă token-ul este destinat aplicației tale
+        if data.get("aud") != EXPECTED_AUD:
+            print("Token audience mismatch")
+            return False
+
+        # Verifică expirarea tokenului
+        exp = int(data.get("exp", 0))
+        if exp and exp < int(datetime.now().timestamp()):
+            print("Token expired")
+            return False
+
+        return True
+    except Exception as e:
+        print(f"Token validation failed: {e}")
+        return False
+
+
+# Define a middleware function to check the token from the URL
+def token_required(f):
+    @wraps(f)
+    async def decorated_function(*args, **kwargs):
+        token = request.args.get("token")
+        if not token:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        # Verify the token (example logic)
+        if not (token == "e4eaaaf2-d142-11e1-b3e4-080027620cdd" or validate_google_token(token)):
+            return jsonify({"error": "Invalid token"}), 401
+
+        return await f(*args, **kwargs)
+    return decorated_function
+ 
 
 def create_app():
     app = Quart(__name__)
@@ -59,14 +108,15 @@ def create_app():
     return app
 
 
-@bp.route("/")
+@bp.route("/3.9.4")
+@token_required
 async def index():
     return await render_template(
         "index.html",
         title=app_settings.ui.title,
         favicon=app_settings.ui.favicon
     )
-
+    
 
 @bp.route("/favicon.ico")
 async def favicon():
@@ -384,8 +434,78 @@ async def stream_chat_request(request_body, request_headers):
     return generate()
 
 
-async def conversation_internal(request_body, request_headers):
+async def conversation_internal(request_body, request_headers):    
+
+    # --- Adăugat: verifică dacă întrebarea este despre rapoartele de astăzi ---
     try:
+        messages = request_body.get("messages", [])
+        if messages and isinstance(messages, list):
+            last_message = messages[-1]
+            if last_message.get("role") == "user" and isinstance(last_message.get("content"), str):
+                def normalize(s):
+                    return ''.join(
+                        c for c in unicodedata.normalize('NFD', s.lower())
+                        if unicodedata.category(c) != 'Mn'
+                    )
+                content_norm = normalize(last_message["content"])
+                # Caută ambele cuvinte "show me all studies" în mesaj
+                if "show me all studies" in content_norm:
+                    try:
+                        study_data = get_study_data()
+                        response_json = study_data
+                        # Dacă există date, extrace URL-urile și returnează-le ca răspuns
+                        if response_json:
+                            urls = []
+                            # presupunem că response_json este dict cu cheie "data" care e listă de dict-uri cu cheie "url"
+                            data = response_json.get("data", [])
+                            for item in data:
+                                url = item.get("url")
+                                name = item.get("name")
+                                startAt = item.get("startAt")
+                                if url:
+                                    # Formatează data să fie doar data calendaristică (fără timp)
+                                    date_only = startAt.split("T")[0] if startAt else ""
+                                    urls.append(f"Name: {name}")
+                                    urls.append(f"Date: {date_only}")
+                                    urls.append(f"URL: https://medisol.xpertlog.net{url}\n")
+
+                            content_str = "\n".join(urls) if urls else "Nu am găsit niciun URL."
+
+        
+                            response_obj = {
+                                "id": str(uuid.uuid4()),
+                                "role": "assistant",
+                                "content": content_str,
+                            }
+
+                            messages = []
+                            messages.append({
+                                "role": "assistant",
+                                "content": content_str
+                            })
+                            history_metadata = request_body.get("history_metadata", {})
+
+
+                            response_obj = {
+                                "id": str(uuid.uuid4()),
+                                "model": "",
+                                "created": "",
+                                "object": "",
+                                "history_metadata": history_metadata,
+                                "choices": [
+                                    {
+                                        "messages": messages,
+                                    }
+                                ]
+                            }
+
+
+                            return response_obj
+                            # ...existing code...
+                    except Exception as e:
+                        return jsonify("Nu am putut prelua raportul study data.")
+                    
+            
         if app_settings.azure_openai.stream and not app_settings.base_settings.use_promptflow:
             result = await stream_chat_request(request_body, request_headers)
             response = await make_response(format_as_ndjson(result))
@@ -394,6 +514,7 @@ async def conversation_internal(request_body, request_headers):
             return response
         else:
             result = await complete_chat_request(request_body, request_headers)
+
             return jsonify(result)
 
     except Exception as ex:
@@ -409,7 +530,6 @@ async def conversation():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
-
     return await conversation_internal(request_json, request.headers)
 
 
@@ -470,6 +590,7 @@ async def add_conversation():
 
         # Submit request to Chat Completions for response
         request_body = await request.get_json()
+            
         history_metadata["conversation_id"] = conversation_id
         request_body["history_metadata"] = history_metadata
         return await conversation_internal(request_body, request.headers)
@@ -818,6 +939,25 @@ async def clear_messages():
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route("/auth/google", methods=["GET"])
+def login_with_google_url():
+    access_token = request.args.get("access_token")
+
+    if not access_token:
+        return jsonify({"error": "Missing access token"}), 400
+
+    # Verify the token
+    google_token_info_url = f"https://oauth2.googleapis.com/tokeninfo?access_token={access_token}"
+    response = requests.get(google_token_info_url)
+
+    if response.status_code == 200:
+        user_info = response.json()
+        return jsonify({"message": "Login successful", "user": user_info})
+    else:
+        return jsonify({"error": "Invalid Google access token"}), 401
+    
+
+
 @bp.route("/history/ensure", methods=["GET"])
 async def ensure_cosmos():
     await cosmos_db_ready.wait()
@@ -880,6 +1020,17 @@ async def generate_title(conversation_messages) -> str:
     except Exception as e:
         logging.exception("Exception while generating title", e)
         return messages[-2]["content"]
+
+def get_study_data():
+    response = requests.get(f"https://medisol.xpertlog.net/api/study?t=3f9cc12b-aeec-4d7e-b1b6-a1e3b5e13892")
+    
+    if response.status_code == 200:
+        #logging.exception(f"Response from study data API: {response.json()}")
+        return response.json()
+    else:
+        return {"error": f"Failed to fetch study data, status: {response.status_code}"}
+
+
 
 
 app = create_app()

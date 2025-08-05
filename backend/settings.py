@@ -41,14 +41,14 @@ class _UiSettings(BaseSettings):
         env_ignore_empty=True
     )
 
-    title: str = "Contoso"
+    title: str = "XpertA"
     logo: Optional[str] = None
     chat_logo: Optional[str] = None
-    chat_title: str = "Start chatting"
+    chat_title: str = "Ask any question about XpertLog"
     chat_description: str = "This chatbot is configured to answer your questions"
     favicon: str = "/favicon.ico"
-    show_share_button: bool = True
-    show_chat_history_button: bool = True
+    show_share_button: bool = False
+    show_chat_history_button: bool = False
 
 
 class _ChatHistorySettings(BaseSettings):
@@ -753,7 +753,7 @@ class _BaseSettings(BaseSettings):
         env_ignore_empty=True
     )
     datasource_type: Optional[str] = None
-    auth_enabled: bool = True
+    auth_enabled: bool = False
     sanitize_answer: bool = False
     use_promptflow: bool = False
 
