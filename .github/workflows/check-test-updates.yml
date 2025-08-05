@@ -1,0 +1,7 @@
+on:
+  push:
+    branches:
+      - clean
+  pull_request:
+    branches:
+      - clean
