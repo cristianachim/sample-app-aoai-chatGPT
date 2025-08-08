@@ -238,6 +238,127 @@ async def init_cosmosdb_client():
     return cosmos_conversation_client
 
 
+async def _llm_is_create_equipment(text: str) -> bool:
+    """Language-agnostic fallback using Azure OpenAI. Returns True/False."""
+    try:
+        if not text or len(text.strip()) == 0:
+            return False
+        client = await init_openai_client()
+        if not client:
+            return False
+        messages = [
+            {"role": "system", "content": (
+                "You are an intent classifier. Understand ANY language. "
+                "Return exactly one token: 'create_template_equ' or 'other'."
+            )},
+            {"role": "user", "content": (
+                "User message: " + text + "\n\n"
+                "Does the user want to create a NEW template equipment? "
+                "Answer STRICTLY with: create_template_equ or other."
+            )}
+        ]
+        resp = await client.chat.completions.create(
+            model=app_settings.azure_openai.model,
+            temperature=0,
+            max_tokens=3,
+            messages=messages,
+        )
+        label = (resp.choices[0].message.content or "").strip().lower()
+        logging.debug(f"LLM intent label: {label}")
+        return label.startswith("create_template_equ")
+    except Exception:
+        return False
+
+async def _append_equipment_tool_message_if_intent(request_body, request_headers) -> bool:
+    """If the latest user message asks to create a new equipment template,
+    call the equipment backend and append a tool message so the LLM can confirm.
+    Returns True if messages were modified, False otherwise.
+    """
+    try:
+        messages = request_body.get("messages", [])
+        if not messages or messages[-1].get("role") != "user":
+            return False
+        user_text = messages[-1].get("content", "")
+        intent_hit = await _llm_is_create_equipment(user_text)
+        if not intent_hit:
+            return False
+
+        # Load Equipment Service settings from env (cast timeout to float)
+        url = (os.environ.get("EQUIPMENT_SERVICE_BASE_URL") or "").strip()
+        timeout_raw = os.environ.get("EQUIPMENT_SERVICE_TIMEOUT", "15")
+        try:
+            timeout_seconds = float(timeout_raw)
+        except Exception:
+            timeout_seconds = 15.0
+        logging.debug(f"url: {url}, timeout_seconds: {timeout_seconds}")
+        if not url:
+            # Service not configured – inform the model via a tool message
+            messages.append({
+                "role": "tool",
+                "name": "equipment_service.create_template",
+                "content": json.dumps({
+                    "status": "error",
+                    "error": "Equipment service not configured"
+                }),
+            })
+            messages.append({
+                "role": "user",
+                "content": "Te rog explică utilizatorului că serviciul pentru template-uri nu este configurat.",
+            })
+            request_body["messages"] = messages
+            return True
+
+        # Build payload for the equipment service
+        try:
+            authenticated_user = get_authenticated_user_details(request_headers=request_headers)
+            user_id = authenticated_user.get("user_principal_id")
+        except Exception:
+            user_id = None
+        payload = {"user_id": user_id, "mesaj": user_text, "source": "chatbot"}
+
+        headers = {"Content-Type": "application/json"}
+
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+
+        logging.debug(f"data: {data}")
+
+
+        # Append a tool message with the backend result so the LLM can craft the reply
+        messages.append({
+            "role": "tool",
+            "name": "equipment_service.create_template",
+            "content": json.dumps({"status": "success", "result": data}),
+        })
+        # Nudge the model to acknowledge succinctly
+        messages.append({
+            "role": "user",
+            "content": "Te rog confirmă crearea template-ului de echipament pe baza rezultatului de mai sus și menționează ID-ul/denumirea dacă e disponibilă.",
+        })
+        request_body["messages"] = messages
+        return True
+    except Exception as e:
+        # Fail-safe: include error as tool message so the assistant can inform the user
+        try:
+            messages = request_body.get("messages", [])
+            messages.append({
+                "role": "tool",
+                "name": "equipment_service.create_template",
+                "content": json.dumps({"status": "error", "error": str(e)}),
+            })
+            messages.append({
+                "role": "user",
+                "content": "A apărut o eroare la crearea template-ului. Te rog explică utilizatorului și oferă pașii următori.",
+            })
+            request_body["messages"] = messages
+            return True
+        except Exception:
+            return False
+# --- end intent glue ---
+
+
 def prepare_model_args(request_body, request_headers):
     request_messages = request_body.get("messages", [])
     messages = []
@@ -564,6 +685,8 @@ async def stream_chat_request(request_body, request_headers):
 
 async def conversation_internal(request_body, request_headers):
     try:
+        # Intercept intent and append tool result if needed (non-breaking: still calls AOAI)
+        await _append_equipment_tool_message_if_intent(request_body, request_headers)
         if app_settings.azure_openai.stream and not app_settings.base_settings.use_promptflow:
             result = await stream_chat_request(request_body, request_headers)
             response = await make_response(format_as_ndjson(result))

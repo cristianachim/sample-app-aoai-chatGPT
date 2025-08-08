@@ -18,7 +18,7 @@
           "-p 50505"
       ],
       "console": "integratedTerminal",
-      "justMyCode": false
+      "justMyCode": true
     },
     {
       "type": "chrome",
